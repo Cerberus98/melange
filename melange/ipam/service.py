@@ -371,9 +371,15 @@ class PoliciesController(BaseController, ShowAction, DeleteAction):
 
 class NetworksController(BaseController):
 
-    def index(self, request, tenant_id, network_id):
-        network = models.Network.find_by(network_id, tenant_id=tenant_id)
+    def show(self, request, tenant_id, id):
+        network = models.Network.find_by(id, tenant_id=tenant_id)
         return dict(ip_blocks=[block.data() for block in network.ip_blocks])
+
+    def ips_used(self, request, tenant_id, id):
+        network = models.Network.find_by(id, tenant_id=tenant_id)
+        total = [block.ips_used(filter_deallocated=True)
+                    for block in network.ip_blocks]
+        return dict(ip_count=total)
 
 
 class InterfaceIpAllocationsController(BaseController):
@@ -735,8 +741,11 @@ class APIV01(APICommon):
 
     def _networks_mapper(self, mapper):
         resource = NetworksController().create_resource()
-        path = "/ipam/tenants/{tenant_id}/networks/{network_id}"
+        path = "/ipam/tenants/{tenant_id}/networks"
         mapper.resource("networks", path, controller=resource)
+        with mapper.submapper(controller=resource, path_prefix=path) as submap:
+            _connect(submap, "/:(id)/ips_used", action="ips_used",
+                     conditions=dict(method=["GET"]))
 
     def _interface_ip_allocations_mapper(self, mapper):
         path = ("/ipam/tenants/{tenant_id}/networks"
