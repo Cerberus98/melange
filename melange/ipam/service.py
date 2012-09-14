@@ -377,8 +377,7 @@ class NetworksController(BaseController):
 
     def ips_used(self, request, tenant_id, id):
         network = models.Network.find_by(id, tenant_id=tenant_id)
-        total = [block.ips_used(filter_deallocated=True)
-                    for block in network.ip_blocks]
+        total = [block.ips_used_filtered() for block in network.ip_blocks]
         return dict(ip_count=total)
 
 
@@ -742,7 +741,8 @@ class APIV01(APICommon):
     def _networks_mapper(self, mapper):
         resource = NetworksController().create_resource()
         path = "/ipam/tenants/{tenant_id}/networks"
-        mapper.resource("networks", path, controller=resource)
+        mapper.resource("networks", "/{network_id}/%s" % path,
+                        controller=resource)
         with mapper.submapper(controller=resource, path_prefix=path) as submap:
             _connect(submap, "/:(id)/ips_used", action="ips_used",
                      conditions=dict(method=["GET"]))

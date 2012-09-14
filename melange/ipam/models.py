@@ -283,10 +283,9 @@ class IpBlock(ModelBase):
         else:
             return str(netaddr.IPNetwork(self.cidr).netmask)
 
-    def ips_used(self, filter_deallocated=False):
+    @property
+    def ips_used(self):
         kwargs = dict(ip_block_id=self.id)
-        if filter_deallocated:
-            kwargs["marked_for_deallocation"] = False
 
         allocated_count = IpAddress.find_all(**kwargs).count()
         if self.policy_id:
@@ -297,7 +296,18 @@ class IpBlock(ModelBase):
 
     @property
     def percent_used(self):
-        return (float(self.ips_used()) / self.size()) * 100.0
+        return (float(self.ips_used) / self.size()) * 100.0
+
+    def ips_used_filtered(self):
+        kwargs = dict(ip_block_id=self.id,
+                      marked_for_deallocation=False)
+
+        allocated_count = IpAddress.find_all(**kwargs).count()
+        if self.policy_id:
+            reserved = self.policy().size(self.cidr)
+        else:
+            reserved = 0
+        return allocated_count + reserved
 
     def is_ipv6(self):
         return netaddr.IPNetwork(self.cidr).version == 6
