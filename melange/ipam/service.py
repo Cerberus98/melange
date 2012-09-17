@@ -594,6 +594,16 @@ class APICommon(wsgi.Router):
         self._ip_routes_mapper(mapper)
         self._instance_interface_mapper(mapper)
         self._mac_address_range_mapper(mapper)
+        self._networks_mapper(mapper)
+
+    def _networks_mapper(self, mapper):
+        resource = NetworksController().create_resource()
+        path = "/ipam/tenants/{tenant_id}/networks"
+        mapper.resource("networks", "/{network_id}/%s" % path,
+                        controller=resource)
+        with mapper.submapper(controller=resource, path_prefix=path) as submap:
+            _connect(submap, "/:(id)/ips_used", action="ips_used",
+                     conditions=dict(method=["GET"]))
 
     def _allocated_ips_mapper(self, mapper):
         allocated_ips_res = AllocatedIpAddressesController().create_resource()
@@ -733,19 +743,9 @@ class APICommon(wsgi.Router):
 class APIV01(APICommon):
     def __init__(self):
         super(APIV01, self).__init__()
-        self._networks_mapper(self.map)
         self._interface_ip_allocations_mapper(self.map)
         self._interface_mapper(self.map)
         self._allowed_ips_mapper(self.map)
-
-    def _networks_mapper(self, mapper):
-        resource = NetworksController().create_resource()
-        path = "/ipam/tenants/{tenant_id}/networks"
-        mapper.resource("networks", "/{network_id}/%s" % path,
-                        controller=resource)
-        with mapper.submapper(controller=resource, path_prefix=path) as submap:
-            _connect(submap, "/:(id)/ips_used", action="ips_used",
-                     conditions=dict(method=["GET"]))
 
     def _interface_ip_allocations_mapper(self, mapper):
         path = ("/ipam/tenants/{tenant_id}/networks"
