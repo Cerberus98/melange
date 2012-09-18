@@ -42,6 +42,7 @@ class BaseController(wsgi.Controller):
             models.IpNotAllowedOnInterfaceError,
             models.NoMoreMacAddressesError,
             models.AddressDisallowedByPolicyError,
+            models.NetworkOverQuotaError
         ],
         webob.exc.HTTPBadRequest: [
             models.InvalidModelError,
@@ -451,11 +452,14 @@ class InstanceInterfacesController(BaseController):
         models.Interface.delete_by(device_id=device_id)
 
         params = self._extract_required_params(body, 'instance')
+        quotas = self._extract_required_params(body, "quotas")
         tenant_id = params['tenant_id']
         created_interfaces = []
         for iface in params['interfaces']:
 
             network_params = utils.stringify_keys(iface.pop('network', None))
+            if quotas:
+                network_params["max_private"] = quotas["max_private"]
             interface = models.Interface.create_and_allocate_ips(
                 device_id=device_id,
                 network_params=network_params,
@@ -486,6 +490,7 @@ class InstanceInterfacesController(BaseController):
             device_id=device_id,
             network_params=network_params,
             **iface_params)
+
         view_data = views.InterfaceConfigurationView(interface).data()
         return dict(interface=view_data)
 
