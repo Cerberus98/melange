@@ -252,7 +252,8 @@ class IpBlock(ModelBase):
     _allowed_block_types = [PUBLIC_TYPE, PRIVATE_TYPE]
     _data_fields = ['cidr', 'network_id', 'policy_id', 'tenant_id', 'gateway',
                     'parent_id', 'type', 'dns1', 'dns2', 'broadcast',
-                    'netmask', 'percent_used', 'ips_used', 'network_name']
+                    'netmask', 'percent_used', 'ips_used', 'network_name',
+                    'max_allocation']
     on_create_notification_fields = ['tenant_id', 'id', 'type', 'created_at']
     on_delete_notification_fields = ['tenant_id', 'id', 'type', 'created_at']
 
@@ -1106,8 +1107,13 @@ class Network(ModelBase):
             return filter(None, [self._allocate_specific_ip(address, **kwargs)
                                  for address in addresses])
 
-        ips = [self._allocate_first_free_ip(blocks, **kwargs)
-               for blocks in self._block_partitions()]
+        ips = []
+        for blocks in self._block_partitions():
+            for block in blocks:
+                if block.max_allocation > 0:
+                    if (block.ips_used >= block.max_allocation):
+                        raise NetworkOverQuotaError()
+            ips.append(self._allocate_first_free_ip(blocks, **kwargs))
 
         if not any(ips):
             raise exception.NoMoreAddressesError(
@@ -1223,6 +1229,10 @@ class InvalidModelError(exception.MelangeError):
 class ConcurrentAllocationError(exception.MelangeError):
 
     message = _("Cannot allocate resource at this time")
+
+
+class NetworkOverQuotaError(exception.MelangeError):
+    message = _("Too many connections on a private network")
 
 
 class NoMoreMacAddressesError(exception.MelangeError):
