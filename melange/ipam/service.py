@@ -19,6 +19,7 @@ import logging
 import routes
 import webob.exc
 
+from melange.common import config
 from melange.common import exception
 from melange.common import pagination
 from melange.common import utils
@@ -105,7 +106,10 @@ class IpBlockController(BaseController, DeleteAction, ShowAction):
     def create(self, request, tenant_id, body=None):
         LOG.info("Creating an IP block for tenant '%s'" % tenant_id)
         params = self._extract_required_params(body, 'ip_block')
-        block = models.IpBlock.create(tenant_id=tenant_id, **params)
+        max_alloc = config.Config.get("ip_block_max_allocation", default=3)
+        block = models.IpBlock.create(tenant_id=tenant_id,
+                                      max_allocation=max_alloc,
+                                      **params)
         LOG.debug("New IP block parameters: %s" % params)
         return wsgi.Result(dict(ip_block=block.data()), 201)
 

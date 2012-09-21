@@ -1110,7 +1110,7 @@ class Network(ModelBase):
         ips = []
         for blocks in self._block_partitions():
             for block in blocks:
-                if block.max_allocation > 0:
+                if block.max_allocation is not None:
                     if (block.ips_used >= block.max_allocation):
                         raise NetworkOverQuotaError()
             ips.append(self._allocate_first_free_ip(blocks, **kwargs))
